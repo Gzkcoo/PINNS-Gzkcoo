@@ -2,6 +2,10 @@
 A scratch for PINN solving the following PDE
 u_xx-u_yyyy=(2-x^2)*exp(-y)
 """
+
+"""
+real solution :u(x,y)=x*x*exp(-y)
+"""
 import torch
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
