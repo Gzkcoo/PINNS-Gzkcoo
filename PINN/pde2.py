@@ -6,7 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-epochs = 1000    # 训练代数
+epochs = 10000    # 训练代数
 h = 100    # 画图网格密度
 N = 1000    # 内点配置点数
 N1 = 100    # 边界点配置点数
