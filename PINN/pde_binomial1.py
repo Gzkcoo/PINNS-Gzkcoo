@@ -22,10 +22,10 @@ class Net(nn.Module):
         self.input_layer = nn.Linear(2, NN)
         self.hidden_layer1 = nn.Linear(NN,int(NN/2)) ## 原文这里用NN，我这里用的下采样，经过实验验证，“等采样”更优
         self.hidden_layer2 = nn.Linear(int(NN/2), int(NN/2))  ## 原文这里用NN，我这里用的下采样，经过实验验证，“等采样”更优
-        self.output_layer = nn.Linear(int(NN/2, 1))
+        self.output_layer = nn.Linear(int(NN/2), 1)
 
 
-    def forward(self, x): # 一种特殊的方法 __call__() 回调
+    def forward(self, x):
         out = torch.tanh(self.input_layer(x))
         out = torch.tanh(self.hidden_layer1(out))
         out = torch.tanh(self.hidden_layer2(out))
@@ -34,7 +34,7 @@ class Net(nn.Module):
 
 def pde(x, net):
     u = net(x)  # 网络得到的数据
-    u_tx = torch.autograd.grad(u, x, grad_outputs=torch.ones_like(net(x)),
+    u_tx = torch.autograd.grad(u, x, grad_outputs=torch.ones_like(u),
                                create_graph=True, allow_unused=True)[0]  # 求偏导数
     d_t = u_tx[:, 0].unsqueeze(-1)
     d_x = u_tx[:, 1].unsqueeze(-1)
@@ -45,8 +45,7 @@ def pde(x, net):
 
     return d_t + u * d_x - w * u_xx  # 公式（1）
 
-def pde(x, net):
-    u = net(x)
+
 
 
 
