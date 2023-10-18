@@ -8,7 +8,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 import numpy as np
 from matplotlib import cm
-
+from torch.utils.data import DataLoader
 
 
 
@@ -121,7 +121,7 @@ t = np.ravel(ms_t).reshape(-1, 1)
 pt_x = Variable(torch.from_numpy(x).float(), requires_grad=True)
 pt_t = Variable(torch.from_numpy(t).float(), requires_grad=True)
 pt_u0 = net(torch.cat([pt_t, pt_x], 1))
-u = pt_u0.data.cpu().numpy()
+u = pt_u0.detach().numpy()
 
 pt_u0 = u.reshape(256, 100)
 
