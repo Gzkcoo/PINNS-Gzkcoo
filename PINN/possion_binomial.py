@@ -102,7 +102,7 @@ net.load_state_dict(torch.load('net_1.params'))
 
 # 模型参数保存
 # torch.save(net.state_dict(),'net_2.params')
-
+# test
 # 模型预测
 exact_solution = exact(xx, yy)
 pred_solution = net(xy_data)
