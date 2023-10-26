@@ -1,99 +1,64 @@
+import deepxde as dde
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
-import torch
-
-if __name__ == '__main__':
-
-    a_1 = 1
-    a_2 = 4
 
 
-    def u(x, a_1, a_2):
-        return np.sin(a_1 * np.pi * x[:, 0:1]) * np.sin(a_2 * np.pi * x[:, 1:2])
+def gen_testdata():
+    data = np.load("../dataset/Burgers.npz")
+    t, x, exact = data["t"], data["x"], data["usol"].T
+    xx, tt = np.meshgrid(x, t)
+    X = np.vstack((np.ravel(xx), np.ravel(tt))).T
+    y = exact.flatten()[:, None]
+    return X, y
 
 
-    def u_xx(x, a_1, a_2):
-        return - (a_1 * np.pi) ** 2 * np.sin(a_1 * np.pi * x[:, 0:1]) * np.sin(a_2 * np.pi * x[:, 1:2])
+def pde(x, y):
+    dy_x = dde.grad.jacobian(y, x, i=0, j=0)
+    dy_t = dde.grad.jacobian(y, x, i=0, j=1)
+    dy_xx = dde.grad.hessian(y, x, i=0, j=0)
+    return dy_t + y * dy_x - 0.01 / np.pi * dy_xx
 
 
-    def u_yy(x, a_1, a_2):
-        return - (a_2 * np.pi) ** 2 * np.sin(a_1 * np.pi * x[:, 0:1]) * np.sin(a_2 * np.pi * x[:, 1:2])
+geom = dde.geometry.Interval(-1, 1)
+timedomain = dde.geometry.TimeDomain(0, 0.99)
+geomtime = dde.geometry.GeometryXTime(geom, timedomain)
 
+bc = dde.icbc.DirichletBC(geomtime, lambda x: 0, lambda _, on_boundary: on_boundary)
+ic = dde.icbc.IC(
+    geomtime, lambda x: -np.sin(np.pi * x[:, 0:1]), lambda _, on_initial: on_initial
+)
 
-    # Forcing
-    def f(x, a_1, a_2, lam):
-        return u_xx(x, a_1, a_2) + u_yy(x, a_1, a_2) + lam * u(x, a_1, a_2)
+data = dde.data.TimePDE(
+    geomtime, pde, [bc, ic], num_domain=2500, num_boundary=100, num_initial=160
+)
+net = dde.nn.FNN([2] + [20] * 3 + [1], "tanh", "Glorot normal")
+model = dde.Model(data, net)
 
+model.compile("adam", lr=1.0e-3)
+model.train(iterations=10000)
+model.compile("L-BFGS")
+model.train()
 
-    def exact(x, y):
-        return torch.sin(2 * 2 * x) * torch.sin(2 * 2 * y)
+X = geomtime.random_points(100000)
+err = 1
+while err > 0.005:
+    f = model.predict(X, operator=pde)
+    err_eq = np.absolute(f)
+    err = np.mean(err_eq)
+    print("Mean residual: %.3e" % (err))
 
+    x_id = np.argmax(err_eq)
+    print("Adding new point:", X[x_id], "\n")
+    data.add_anchors(X[x_id])
+    early_stopping = dde.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
+    model.compile("adam", lr=1e-3)
+    model.train(iterations=10000, disregard_previous_best=True, callbacks=[early_stopping])
+    model.compile("L-BFGS")
+    losshistory, train_state = model.train()
+dde.saveplot(losshistory, train_state, issave=True, isplot=True)
 
-    # Parameter
-    lam = 1.0
-
-    # Domain boundaries
-    bc1_coords = np.array([[-1.0, -1.0],
-                           [1.0, -1.0]])
-    bc2_coords = np.array([[1.0, -1.0],
-                           [1.0, 1.0]])
-    bc3_coords = np.array([[1.0, 1.0],
-                           [-1.0, 1.0]])
-    bc4_coords = np.array([[-1.0, 1.0],
-                           [-1.0, -1.0]])
-
-    dom_coords = np.array([[-1.0, -1.0],
-                           [1.0, 1.0]])
-
-    # Create initial conditions samplers
-    ics_sampler = None
-
-
-
-    # Test data
-    nn = 100
-    x1 = np.linspace(0, 1, nn)[:, None]
-    x2 = np.linspace(0, 1, nn)[:, None]
-    x1, x2 = np.meshgrid(x1, x2)
-    X_star = np.hstack((x1.flatten()[:, None], x2.flatten()[:, None]))
-
-    # xc = torch.linspace(0, 1, 100)
-    # xm, ym = torch.meshgrid(xc, xc)
-    # xx = xm.reshape(-1, 1)
-    # yy = ym.reshape(-1, 1)
-    #
-    #
-    # xy_data = torch.cat([xx, yy], dim=1).requires_grad_(True)
-    # u_star = exact(xx, yy)
-    #
-    # xx = xx.detach().numpy()
-    # yy = yy.detach().numpy()
-    #
-    # xy = xy_data.detach().numpy()
-    # u_star = u_star.detach().numpy()
-    # xy_data = xy_data.detach().numpy()
-    # U_star = griddata(xy_data, u_star.flatten(), (xx, yy), method='cubic')
-
-    # Exact solution
-
-    u_star = u(X_star, a_1, a_2)
-    # Exact solution & Predicted solution
-    # Exact soluton
-    U_star = griddata(X_star, u_star.flatten(), (x1, x2), method='cubic')
-
-
-
-
-    fig_1 = plt.figure(1, figsize=(18, 5))
-    plt.subplot(1, 3, 1)
-    plt.pcolor(x1, x2, U_star, cmap='jet')
-    plt.colorbar()
-    plt.xlabel(r'$x_1$')
-    plt.ylabel(r'$x_2$')
-    plt.title('Exact $u(x)$')
-    plt.show()
-
-
+X, y_true = gen_testdata()
+y_pred = model.predict(X)
+print("L2 relative error:", dde.metrics.l2_relative_error(y_true, y_pred))
+np.savetxt("test.dat", np.hstack((X, y_true, y_pred)))
 
 
