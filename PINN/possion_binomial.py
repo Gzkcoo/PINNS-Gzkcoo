@@ -97,7 +97,7 @@ optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 #         print('\repoch {:d} PINN loss = {:.6f}'.format(i + 1, loss.item()),
 #                 end='', flush=True)
 
-
+# tt
 net.load_state_dict(torch.load('net_1.params'))
 
 # 模型参数保存
