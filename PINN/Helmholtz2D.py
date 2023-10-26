@@ -247,6 +247,7 @@ for i in range(epochs):
         plt.legend()
         plt.show()
 
+
         # 二维图展现误差
         error_fig2D(net)
 
